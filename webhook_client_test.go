@@ -3,10 +3,12 @@ package bearychat
 import (
 	"net/http"
 	"testing"
+
+	"github.com/bcho/bearychat.go/mock"
 )
 
 const (
-	testWebhook = "http://localhost:3927"
+	testWebhook = "http://127.0.0.1:3927/=bwaaa/incoming/deadbeef"
 )
 
 func TestWebhookResponse_IsOk(t *testing.T) {
@@ -66,6 +68,58 @@ func TestIncomingWebhookClient_Send_WithoutHTTPClient(t *testing.T) {
 	if err == nil {
 		t.Errorf("should not send when http client is not set")
 	}
+}
+
+func TestIncomingWebhookClient_Send_Ok(t *testing.T) {
+	s := mock.NewIncomingServer(
+		mock.IncomingWithOkResponse,
+		mock.IncomingWithWebhook(testWebhook),
+	)
+	go s.ListenAndServe()
+
+	m := Incoming{Text: "Hello, BearyChat"}
+	payload, err := m.Build()
+	if err != nil {
+		t.Errorf("build failed: %+v", err)
+	}
+
+	resp, err := NewIncomingWebhookClient(testWebhook).Send(payload)
+	if err != nil {
+		t.Errorf("send failed: %+v", err)
+	}
+
+	if !resp.IsOk() {
+		t.Errorf("expect send ok")
+	}
+	s.Stop()
+}
+
+func TestIncomingWebhookClient_Send_Failed(t *testing.T) {
+	expectedError := "failed"
+	s := mock.NewIncomingServer(
+		mock.IncomingWithErrorResponse(expectedError),
+		mock.IncomingWithWebhook(testWebhook),
+	)
+	go s.ListenAndServe()
+
+	m := Incoming{Text: "Hello, BearyChat"}
+	payload, err := m.Build()
+	if err != nil {
+		t.Errorf("build failed: %+v", err)
+	}
+
+	resp, err := NewIncomingWebhookClient(testWebhook).Send(payload)
+	if err != nil {
+		t.Errorf("send failed: %+v", err)
+	}
+
+	if resp.IsOk() {
+		t.Errorf("expect send failed")
+	}
+	if resp.Error != expectedError {
+		t.Errorf("unexpected error: %s", resp.Error)
+	}
+	s.Stop()
 }
 
 func ExampleNewIncomingWebhookClient() {

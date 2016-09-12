@@ -15,7 +15,11 @@ type WebhookResponse struct {
 	Result     *json.RawMessage `json:"result"`
 }
 
-func (w WebhookResponse) IsOk() bool {
+func (w *WebhookResponse) IsOk() bool {
+	if w == nil {
+		return false
+	}
+
 	return w.Code == 0
 }
 
